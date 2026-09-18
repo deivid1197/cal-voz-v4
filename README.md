@@ -1,1 +1,960 @@
-# cal-voz-v4
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+
+<meta charset="UTF-8">
+
+<meta name="viewport"
+content="width=device-width, initial-scale=1.0">
+
+<title>Calculadora por Voz</title>
+
+<style>
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+
+    font-family: Arial, sans-serif;
+
+    text-align: center;
+
+    background: #eeeeee;
+
+    margin: 0;
+
+    padding: 30px 15px;
+
+}
+
+h1 {
+
+    font-size: 32px;
+
+    margin-bottom: 30px;
+
+}
+
+button {
+
+    font-size: 25px;
+
+    padding: 18px 35px;
+
+    border: none;
+
+    border-radius: 12px;
+
+    background: #222;
+
+    color: white;
+
+    cursor: pointer;
+
+}
+
+button:active {
+
+    transform: scale(0.96);
+
+}
+
+#texto {
+
+    font-size: 22px;
+
+    margin-top: 30px;
+
+    word-wrap: break-word;
+
+}
+
+#expresion {
+
+    font-size: 30px;
+
+    font-weight: bold;
+
+    margin-top: 20px;
+
+}
+
+#resultado {
+
+    font-size: 55px;
+
+    font-weight: bold;
+
+    margin-top: 15px;
+
+    word-wrap: break-word;
+
+}
+
+#estado {
+
+    font-size: 18px;
+
+    margin-top: 25px;
+
+}
+
+
+@media (max-width: 600px) {
+
+    body {
+
+        padding-top: 25px;
+
+    }
+
+    h1 {
+
+        font-size: 27px;
+
+    }
+
+    button {
+
+        width: 90%;
+
+        max-width: 350px;
+
+        font-size: 23px;
+
+    }
+
+    #texto {
+
+        font-size: 19px;
+
+    }
+
+    #expresion {
+
+        font-size: 24px;
+
+    }
+
+    #resultado {
+
+        font-size: 45px;
+
+    }
+
+}
+
+</style>
+
+</head>
+
+
+<body>
+
+
+<h1>🎤 Calculadora por Voz</h1>
+
+
+<button id="boton">
+
+🎤 HABLAR
+
+</button>
+
+
+<div id="texto">
+
+Pulsa el botón y habla
+
+</div>
+
+
+<div id="expresion">
+
+</div>
+
+
+<div id="resultado">
+
+-
+
+</div>
+
+
+<div id="estado">
+
+📡 ESP32: conectado
+
+</div>
+
+
+
+<script>
+
+
+// ==================================================
+// IP DEL ESP32
+// ==================================================
+
+const IP_ESP32 = "10.190.153.41";
+
+
+// ==================================================
+// ELEMENTOS
+// ==================================================
+
+const boton =
+document.getElementById("boton");
+
+const textoPantalla =
+document.getElementById("texto");
+
+const expresionPantalla =
+document.getElementById("expresion");
+
+const resultadoPantalla =
+document.getElementById("resultado");
+
+const estado =
+document.getElementById("estado");
+
+
+// ==================================================
+// RECONOCIMIENTO DE VOZ
+// ==================================================
+
+const SpeechRecognition =
+window.SpeechRecognition ||
+window.webkitSpeechRecognition;
+
+
+if (!SpeechRecognition) {
+
+    textoPantalla.innerText =
+        "❌ Tu navegador no soporta reconocimiento de voz.";
+
+} else {
+
+
+    const reconocimiento =
+        new SpeechRecognition();
+
+
+    reconocimiento.lang =
+        "es-CO";
+
+
+    reconocimiento.continuous =
+        false;
+
+
+    reconocimiento.interimResults =
+        false;
+
+
+    // ==================================================
+    // BOTON
+    // ==================================================
+
+    boton.onclick = function() {
+
+        textoPantalla.innerText =
+            "🎤 ESCUCHANDO...";
+
+        expresionPantalla.innerText =
+            "";
+
+        resultadoPantalla.innerText =
+            "...";
+
+        estado.innerText =
+            "🎤 Escuchando...";
+
+
+        try {
+
+            reconocimiento.start();
+
+        }
+
+        catch(error) {
+
+            console.log(error);
+
+        }
+
+    };
+
+
+    // ==================================================
+    // RESULTADO DE VOZ
+    // ==================================================
+
+    reconocimiento.onresult =
+    function(event) {
+
+
+        const texto =
+            event.results[0][0].transcript;
+
+
+        console.log(
+            "VOZ RECONOCIDA:",
+            texto
+        );
+
+
+        textoPantalla.innerText =
+            "Escuché: " + texto;
+
+
+        calcular(texto);
+
+    };
+
+
+    // ==================================================
+    // ERROR
+    // ==================================================
+
+    reconocimiento.onerror =
+    function(event) {
+
+
+        console.log(
+            "ERROR:",
+            event.error
+        );
+
+
+        textoPantalla.innerText =
+            "Error: " + event.error;
+
+
+        resultadoPantalla.innerText =
+            "❌";
+
+
+        estado.innerText =
+            "❌ Error de reconocimiento";
+
+    };
+
+}
+
+
+// ==================================================
+// CONVERTIR NUMEROS EN ESPAÑOL
+// ==================================================
+
+const unidades = {
+
+    "cero": 0,
+
+    "uno": 1,
+
+    "una": 1,
+
+    "dos": 2,
+
+    "tres": 3,
+
+    "cuatro": 4,
+
+    "cinco": 5,
+
+    "seis": 6,
+
+    "siete": 7,
+
+    "ocho": 8,
+
+    "nueve": 9
+
+};
+
+
+const especiales = {
+
+    "diez": 10,
+
+    "once": 11,
+
+    "doce": 12,
+
+    "trece": 13,
+
+    "catorce": 14,
+
+    "quince": 15,
+
+    "dieciseis": 16,
+
+    "diecisiete": 17,
+
+    "dieciocho": 18,
+
+    "diecinueve": 19,
+
+    "veinte": 20
+
+};
+
+
+const decenas = {
+
+    "treinta": 30,
+
+    "cuarenta": 40,
+
+    "cincuenta": 50,
+
+    "sesenta": 60,
+
+    "setenta": 70,
+
+    "ochenta": 80,
+
+    "noventa": 90
+
+};
+
+
+function numeroPalabra(palabra) {
+
+
+    palabra =
+        palabra
+        .normalize("NFD")
+        .replace(
+            /[\u0300-\u036f]/g,
+            ""
+        );
+
+
+    if (
+        unidades[palabra] !== undefined
+    ) {
+
+        return unidades[palabra];
+
+    }
+
+
+    if (
+        especiales[palabra] !== undefined
+    ) {
+
+        return especiales[palabra];
+
+    }
+
+
+    if (
+        decenas[palabra] !== undefined
+    ) {
+
+        return decenas[palabra];
+
+    }
+
+
+    return null;
+
+}
+
+
+// ==================================================
+// CONVERTIR TEXTO A EXPRESION
+// ==================================================
+
+function convertirExpresion(texto) {
+
+
+    let t =
+        texto
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(
+            /[\u0300-\u036f]/g,
+            ""
+        );
+
+
+    // ----------------------------------------------
+    // OPERACIONES
+    // ----------------------------------------------
+
+    t = t.replace(
+        /\b(dividido entre|dividida entre|dividido|dividida|dividir|divido|entre)\b/g,
+        " / "
+    );
+
+
+    t = t.replace(
+        /\b(multiplicado por|multiplicada por|multiplicado|multiplicada|multiplicar|por)\b/g,
+        " * "
+    );
+
+
+    t = t.replace(
+        /\b(mas|suma|sumar)\b/g,
+        " + "
+    );
+
+
+    t = t.replace(
+        /\b(menos|resta|restar)\b/g,
+        " - "
+    );
+
+
+    // ----------------------------------------------
+    // NUMEROS DE 0 A 20
+    // ----------------------------------------------
+
+    for (
+        const palabra in unidades
+    ) {
+
+        const valor =
+            unidades[palabra];
+
+
+        const regex =
+            new RegExp(
+                "\\b" +
+                palabra +
+                "\\b",
+                "g"
+            );
+
+
+        t =
+            t.replace(
+                regex,
+                " " + valor + " "
+            );
+
+    }
+
+
+    for (
+        const palabra in especiales
+    ) {
+
+        const valor =
+            especiales[palabra];
+
+
+        const regex =
+            new RegExp(
+                "\\b" +
+                palabra +
+                "\\b",
+                "g"
+            );
+
+
+        t =
+            t.replace(
+                regex,
+                " " + valor + " "
+            );
+
+    }
+
+
+    // ----------------------------------------------
+    // DECENAS
+    // ----------------------------------------------
+
+    for (
+        const palabra in decenas
+    ) {
+
+        const valor =
+            decenas[palabra];
+
+
+        const regex =
+            new RegExp(
+                "\\b" +
+                palabra +
+                "\\b",
+                "g"
+            );
+
+
+        t =
+            t.replace(
+                regex,
+                " " + valor + " "
+            );
+
+    }
+
+
+    // ----------------------------------------------
+    // LIMPIAR PALABRAS
+    // ----------------------------------------------
+
+    t =
+        t.replace(
+            /[^0-9+\-*/().]/g,
+            " "
+        );
+
+
+    // ----------------------------------------------
+    // LIMPIAR ESPACIOS
+    // ----------------------------------------------
+
+    t =
+        t.replace(
+            /\s+/g,
+            " "
+        )
+        .trim();
+
+
+    return t;
+
+}
+
+
+// ==================================================
+// VALIDAR EXPRESION
+// ==================================================
+
+function expresionValida(expresion) {
+
+
+    if (
+        !expresion
+    ) {
+
+        return false;
+
+    }
+
+
+    // Solo permitimos:
+    // numeros
+    // + - * /
+    // parentesis
+    // puntos
+
+    return /^[0-9+\-*/().\s]+$/.test(
+        expresion
+    );
+
+}
+
+
+// ==================================================
+// CALCULAR RESPETANDO JERARQUIA
+// ==================================================
+
+function calcularExpresion(expresion) {
+
+
+    if (
+        !expresionValida(expresion)
+    ) {
+
+        return null;
+
+    }
+
+
+    try {
+
+
+        // ------------------------------------------
+        // EVALUAR EXPRESION
+        // ------------------------------------------
+
+        const resultado =
+            Function(
+                '"use strict"; return (' +
+                expresion +
+                ')'
+            )();
+
+
+        // ------------------------------------------
+        // COMPROBAR RESULTADO
+        // ------------------------------------------
+
+        if (
+            typeof resultado !== "number" ||
+            !Number.isFinite(resultado)
+        ) {
+
+            return null;
+
+        }
+
+
+        return resultado;
+
+    }
+
+    catch(error) {
+
+        console.log(
+            "Error matematico:",
+            error
+        );
+
+        return null;
+
+    }
+
+}
+
+
+// ==================================================
+// CALCULAR
+// ==================================================
+
+function calcular(texto) {
+
+
+    console.log(
+        "================================="
+    );
+
+
+    console.log(
+        "TEXTO:",
+        texto
+    );
+
+
+    // ----------------------------------------------
+    // CREAR EXPRESION
+    // ----------------------------------------------
+
+    const expresion =
+        convertirExpresion(texto);
+
+
+    console.log(
+        "EXPRESION:",
+        expresion
+    );
+
+
+    expresionPantalla.innerText =
+        expresion;
+
+
+    // ----------------------------------------------
+    // VALIDAR
+    // ----------------------------------------------
+
+    if (
+        !expresion
+    ) {
+
+        resultadoPantalla.innerText =
+            "❌";
+
+        estado.innerText =
+            "❌ No entendí la operación";
+
+        return;
+
+    }
+
+
+    // ----------------------------------------------
+    // COMPROBAR SI HAY OPERACION
+    // ----------------------------------------------
+
+    if (
+        !/[+\-*/]/.test(expresion)
+    ) {
+
+        resultadoPantalla.innerText =
+            "❌ Falta operación";
+
+        estado.innerText =
+            "❌ No detecté la operación";
+
+        return;
+
+    }
+
+
+    // ----------------------------------------------
+    // DIVISION ENTRE CERO
+    // ----------------------------------------------
+
+    const divisiones =
+        expresion.match(
+            /\/\s*0(?:\D|$)/g
+        );
+
+
+    if (
+        divisiones
+    ) {
+
+        resultadoPantalla.innerText =
+            "❌ No se puede ÷ 0";
+
+        estado.innerText =
+            "❌ División entre cero";
+
+        return;
+
+    }
+
+
+    // ----------------------------------------------
+    // CALCULAR
+    // ----------------------------------------------
+
+    const resultado =
+        calcularExpresion(
+            expresion
+        );
+
+
+    if (
+        resultado === null
+    ) {
+
+        resultadoPantalla.innerText =
+            "❌ Error";
+
+
+        estado.innerText =
+            "❌ No pude calcular";
+
+        return;
+
+    }
+
+
+    // ----------------------------------------------
+    // MOSTRAR
+    // ----------------------------------------------
+
+    resultadoPantalla.innerText =
+        "= " + resultado;
+
+
+    console.log(
+        "RESULTADO:",
+        resultado
+    );
+
+
+    // ----------------------------------------------
+    // ENVIAR ESP32
+    // ----------------------------------------------
+
+    enviarAlESP32(
+        texto,
+        resultado
+    );
+
+}
+
+
+// ==================================================
+// ENVIAR AL ESP32
+// ==================================================
+
+function enviarAlESP32(
+    operacion,
+    resultado
+) {
+
+
+    estado.innerText =
+        "📡 Enviando al ESP32...";
+
+
+    const url =
+        "http://" +
+        IP_ESP32 +
+        "/calcular?operacion=" +
+        encodeURIComponent(
+            operacion
+        ) +
+        "&resultado=" +
+        encodeURIComponent(
+            resultado
+        );
+
+
+    console.log(
+        "ENVIANDO:",
+        url
+    );
+
+
+    fetch(url)
+
+    .then(
+        response => {
+
+            if (
+                !response.ok
+            ) {
+
+                throw new Error(
+                    "Error del ESP32"
+                );
+
+            }
+
+            return response.text();
+
+        }
+    )
+
+    .then(
+        data => {
+
+            console.log(
+                "ESP32:",
+                data
+            );
+
+
+            estado.innerText =
+                "✅ ESP32 actualizado";
+
+        }
+    )
+
+    .catch(
+        error => {
+
+            console.error(
+                error
+            );
+
+
+            estado.innerText =
+                "❌ No se pudo conectar al ESP32";
+
+        }
+    );
+
+}
+
+</script>
+
+</body>
+
+</html>
